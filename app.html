@@ -1,0 +1,159 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <title>Library of Congress</title>
+
+    <link type="text/css" href="res/css/bootstrap.min.css" rel="stylesheet">
+    <script type="text/javascript" src="http://code.jquery.com/jquery-latest.js"></script>
+    <script type="text/javascript" src="http://ajax.cdnjs.com/ajax/libs/underscore.js/1.1.4/underscore-min.js"></script>
+    <script type="text/javascript" src="http://ajax.cdnjs.com/ajax/libs/backbone.js/0.3.3/backbone-min.js"></script>
+
+    <meta charset="utf-8" />
+      
+    <style type="text/css">
+
+    .imgWrap {
+      border: 1px solid black;
+      box-shadow: 0 0 1px 0 #AAAAAA, 0 1px 5px 0 #AAAAAA;
+      float: left;
+      height: 150px;
+      margin: 5px 2px;
+      max-width: 100%;
+      overflow: hidden;
+      padding: 5px;
+      position: relative;
+      text-overflow: ellipsis;
+      vertical-align: middle;
+      width: 150px;
+    }
+    .imgWrap:after {
+      background-color: black;
+      bottom: 0;
+      color: #FFFFFF;
+      content: attr(title);
+      font-family: arial;
+      font-size: 12px;
+      left: 0;
+      height:35px;
+      line-height:17px;
+      opacity: 0.8;
+      overflow: hidden;
+      padding: 0 10px;
+      position: absolute;
+      text-overflow: ellipsis;
+      width: 140px;
+      padding-top: 5px;
+    }
+    img {
+        height: 150px;
+        width: 150px;
+    }
+    .formWrap{
+      margin-bottom: 20px;
+      display: block;
+    }
+    .formWrap #SearchQuaryField{
+      margin-bottom: 0px;
+    }
+    
+    </style>
+
+
+     <script type="text/javascript">
+
+         var  app = function ($) {
+
+             ImageItem = Backbone.Model.extend({
+                 "title": null,
+                 "date": null,
+                 "imgUrl": null,
+                 "thumb_gallery": null,
+             });
+
+             ImagesItems = Backbone.Collection.extend({
+                 initialize: function (models, options) {
+                     this.bind("add", options.view.renderImgElement);
+                 }
+             });
+
+             AppView = Backbone.View.extend({
+                 el: $("body"),
+                 initialize: function () {
+                     this.collection = new ImagesItems(null, { view: this });
+                 },
+                 events: {
+                     "click #SearchButton": "onSearchButtonPress",
+                     "keypress #SearchQuaryField": "onSearchQuaryFieldKeyPress",
+                 },
+                 onSearchQuaryFieldKeyPress: function (e) {
+                     var that = this;
+                     if (e.keyCode == 13)
+                         this.doSearch(that);
+                 },
+                 onSearchButtonPress: function (e) {
+                     var that = this;
+                     this.doSearch(that);
+                 },
+                 doSearch: function (that) {
+                     var searchQ = $("#SearchQuaryField").val();
+                     var imgItem = new ImageItem({ title: searchQ });
+                     $("#LoadingEl").show();
+                     $.getJSON("http://www.loc.gov/pictures/search/?q=" + searchQ + "&callback=?&fo=json", function (res) {
+                         that.searchQuaryCallback(res);
+                     });
+                 },
+                 searchQuaryCallback: function (res) {
+                     $("#Imglist").empty();
+                     $("#LoadingEl").hide();
+
+                     var index = 0;
+                     for (var i = 0; i < res.results.length; i++) {
+
+                         if (res.results[i].image.alt == "item not digitized thumbnail" || res.results[i].image.alt == "habs/haer thumbnail" || res.results[i].image.alt == "group item thumbnail") continue;
+                         if (typeof res.results[i] == "object" && index < 15) {
+                             this.collection.add({
+                                 title: res.results[i].title,
+                                 date: res.results[i].created,
+                                 imgUrl: res.results[i].image.thumb
+                             });
+                             index++;
+                         }
+
+                     }
+                 },
+                 renderImgElement: function (model) {
+                     var imgEl = document.createElement("img");
+                     imgEl.src = model.get('imgUrl');
+                     var span = document.createElement("span");
+                     span.setAttribute("class", "imgWrap");
+                     span.setAttribute("title", model.get('title'));
+                     span.appendChild(imgEl);
+
+                     $("#Imglist").append(span);
+                 }
+             });
+
+             return new AppView();
+
+         };
+
+
+         jQuery(function () {
+             var s = new app(jQuery);
+         });
+
+      </script>
+
+  </head>
+  <body>
+    <div class="container">
+        <h1>Library of Congress Search</h1>
+        <div class="formWrap">
+          <input id="SearchQuaryField" type="text" placeholder="Type something ... ">
+          <button id="SearchButton" type="submit" class="btn btn-primary">Submit</button>
+          <span style="display:none" id="LoadingEl">Loading...</span>
+        </div>
+        <div id="Imglist"></div>
+    </div>
+  </body>
+</html>
